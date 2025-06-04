@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Top</title>
+    <meta charset="UTF-8" />
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        button { margin: 5px; padding: 10px; }
+        pre { background: #111; color: #0f0; padding: 15px; white-space: pre-wrap; }
+        input[type="text"] { margin: 5px; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Commandes disponibles</h1>
+    <div id="buttons"></div>
+    <h2>Résultat</h2>
+    <pre id="output">Cliquez sur une commande ci-dessus...</pre>
+    <label for="password">Mot de passe:</label>
+    <input type="text" id="password" name="password">
+
+    <script>
+        const commands = {{ commands | tojson }};
+        const output = document.getElementById("output");
+        const passwordInput = document.getElementById("password");
+
+        function pollResult(resultUrl) {
+            fetch(resultUrl)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.report || data.error) {
+                        output.textContent = data.report || data.error || "Aucune sortie.";
+                    } else {
+                        output.textContent = "[En cours...]\n" + (data.stdout || "");
+                        setTimeout(() => pollResult(resultUrl), 1000);
+                    }
+                })
+                .catch(err => {
+                    output.textContent = "Erreur : " + err;
+                });
+        }
+	var lastSlash = document.location.href.lastIndexOf('/');
+	var prefix = document.location.href.substr(0,lastSlash);
+
+        const buttonsDiv = document.getElementById("buttons");
+        commands.forEach(cmd => {
+            const btn = document.createElement("button");
+            btn.textContent = cmd;
+            btn.onclick = () => {
+                const password = passwordInput.value;
+                if (!password) {
+                    output.textContent = "Veuillez entrer un mot de passe.";
+                    return;
+                }
+                output.textContent = "Commande envoyée...";
+                const endpoint = cmd.toLowerCase().replaceAll(" ", "_");
+                fetch(prefix +  `/${endpoint}`, {
+                    method: "POST",
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ command: endpoint, args:[password]})
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.key) {
+			    let returnUrl = prefix + `/${endpoint}?key=${data.key}&wait=false` 
+                            pollResult(returnUrl);
+                        } else {
+                            output.textContent = data.error || "Erreur";
+                        }
+                    })
+                    .catch(err => {
+                        output.textContent = "Erreur : " + err;
+                    });
+            };
+            buttonsDiv.appendChild(btn);
+        });
+    </script>
+</body>
+</html>
