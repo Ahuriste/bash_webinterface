@@ -37,7 +37,6 @@ def forward_post(path, endpoint):
                 "http://localhost:"+str(port)+'/'+endpoint,
             data=request.get_data(),      
             params=request.args
-            #headers={key: value for key, value in request.headers if key != 'Host'},  
         )
         r = response.json ()
         return r
